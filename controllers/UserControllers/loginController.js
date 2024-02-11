@@ -1,26 +1,22 @@
 const mongoose = require("mongoose");
-const user = require("../../models/UserModel");
+const User = require("../../models/UserModel");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 exports.login = async (req, res) => {
-  try {
-    const email = req.body.email;
-    console.log(email);
-    // login user
-
-    const existUser = await user.findOne({ email: email });
-    if (existUser) {
-      const verifPassword = await bcrypt.compare(
-        req.body.password,
-        existUser.password
-      );
-      if (verifPassword) {
-        res.json({
-          messge: "user found",
-        });
-      }
-    }
-  } catch (error) {
-    console.log(`Error in adding User : ${error}`);
+  const loginData = req.body;
+  const { email, password } = loginData;
+  const existUser = await User.findOne({ email: email });
+  if (!existUser) {
+    return res.status(401).json({ msg: "Invalid Credentials" });
   }
+  const isMatched = await bcrypt.compare(password, existUser.password);
+  if (!isMatched) {
+    return res.status(401).json({ msg: "Invalid Credentials" });
+  }
+  const payload = { _id: existUser._id };
+  const token = jwt.sign(payload, process.env.SECRET_KEY, {
+    expiresIn: 60 * 15,
+  });
+  res.send({ user: existUser, token });
 };
